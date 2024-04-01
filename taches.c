@@ -12,12 +12,15 @@
 
 int main(){
   int fd;
-  tache writebuf = {3, 2};
+  tache writebuf = {1, 6};
+  tache writebuf2 = {2, 5};
 
 
   fd= open(PIPE, O_WRONLY, 0);
 
   write(fd, &writebuf, sizeof(writebuf));
+  sleep(2);
+  write(fd, &writebuf2, sizeof(writebuf2));
 
 
 }

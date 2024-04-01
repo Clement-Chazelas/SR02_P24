@@ -11,42 +11,72 @@
 #define PIPE "fifo"
 
 int pid;
-struct sigaction act_gestionnaire, act_pere;
+struct sigaction act_gestionnaire, act_pere, act_tache;
 int fd;
 
 
 void fonct_gestionnaire(){
-  sleep(1);
-  printf("Yahouu\n" );fflush(stdout);
+  printf("Victoire\n"); fflush(stdout);
+
 
 }
 
 void fonct_pere(){
   printf("Fin du gestionnaire de tache\n"); fflush(stdout);
-  kill(pid, SIGUSR1);
+  if (kill(pid, SIGUSR1) == 0){
+    printf("chelou\n"); fflush(stdout);
+  }
 
+}
+
+void fonct_tache(){
+
+  exit(0);
 }
 
 void exec_tache(tache* tache){
     pid_t tache_pid;
-    int	status;
+
     tache_pid = fork();
     if (tache_pid < 0) {
         perror("Erreur lors de la création du processus pour la tâche");fflush(stdout);
         exit(EXIT_FAILURE);
-    } else if (tache_pid == 0) {
-
-        printf("Executeur de tâche : ID %d, Temps d'exécution : %ds\n", tache->id, tache->duree_exec);fflush(stdout);
-        sleep(tache->duree_exec); // Exécution de la tâche
-        printf("Executeur de tâche : Tâche terminée\n");fflush(stdout);
-
-        exit(0);
     }
-    else if (tache_pid > 0){
-        waitpid(tache_pid, &status, 0);
-        printf("fils attendu" );fflush(stdout);
+    else if (tache_pid == 0) {
+
+        pid_t timer_pid;
+        timer_pid = fork();
+        if (timer_pid == 0){
+
+          // Timer qui vérifie qu'une tache ne dépasse pas 5 secondes
+
+          int t = 0;
+          while (t < 5){
+            sleep(1);
+            t++;
+          }
+          if (kill(getppid(), SIGUSR2) == 0){
+            printf("Fin de la tache %d car execution >5s \n", tache->id); fflush(stdout);
+          }
+
+          exit(0);
+
+        }
+        else if(timer_pid >0){
+          // Handler qui gère l'interruption d'une tache trop longue
+          act_tache.sa_handler = fonct_tache;
+          sigaction(SIGUSR2, &act_tache, 0);
+
+          printf("Executeur de tâche : ID %d, Temps d'exécution : %ds\n", tache->id, tache->duree_exec);fflush(stdout);
+          // Simulation d'une execution de tache
+          sleep(tache->duree_exec);
+          printf("Executeur de tâche : Tâche %d terminée\n", tache->id);fflush(stdout);
+
+          exit(0);
+        }
 
     }
+
 }
 
 int main(){
@@ -63,11 +93,11 @@ int main(){
 
 
     while(1){
-      sleep(1);
+
       if (read(fd, &readtache, sizeof(tache)) < 0){ // lire du pipe
         perror("Error reading pipe");fflush(stdout); exit(1);
       }
-      //if (readtache != null) !!!!
+
       if(readtache.duree_exec != -1){
 
         exec_tache(&readtache);
